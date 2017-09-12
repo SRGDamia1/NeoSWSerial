@@ -39,7 +39,7 @@
 // In such case client code should call NeoSWSerial::rxISR(PINB) (assuming
 // that receivePin is on PORT B)
 //
-// Supported baud rates are 9600 (default), 19200 and 38400.
+// Supported baud rates are 9600 (default), 19200, 31250 and 38400.
 // The baud rate is selectable at run time.
 //
 // The size of the RX buffer may be changed by editing the
