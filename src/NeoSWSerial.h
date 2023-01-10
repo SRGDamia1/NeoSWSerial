@@ -65,10 +65,11 @@ class NeoSWSerial : public Stream
   NeoSWSerial & operator =( const NeoSWSerial & ); // Not allowed
 
 public:
-  NeoSWSerial(uint8_t receivePin, uint8_t transmitPin)
+  NeoSWSerial(uint8_t receivePin, uint8_t transmitPin, bool inverse_logic = false)
     {
       rxPin = receivePin;
       txPin = transmitPin;
+      inverse = inverse_logic;
       _isr  = (isr_t) NULL;
     }
 
@@ -90,6 +91,7 @@ public:
 
 private:
            int8_t  rxPin, txPin;
+           bool inverse;
   volatile uint8_t *rxPort;
 
   uint16_t _baudRate;
@@ -104,6 +106,7 @@ private:
 public:
   // visible only so the ISRs can call it...
   static void rxISR( uint8_t port_input_register );
+  static bool invert; // invert levels on line
 
   #ifndef NEOSWSERIAL_EXTERNAL_PCINT
   #define NEOSWSERIAL_EXTERNAL_PCINT // uncomment to use your own PCINT ISRs
