@@ -153,19 +153,26 @@ void NeoSWSerial::listen()
   if (listener)
     listener->ignore();
 
+  inv = inverse;
   pinMode(rxPin, INPUT);
   rxBitMask = digitalPinToBitMask( rxPin );
   rxPort    = portInputRegister( digitalPinToPort( rxPin ) );
 
-  txBitMask = digitalPinToBitMask( txPin );
-  txPort    = portOutputRegister( digitalPinToPort( txPin ) );
-  inv = inverse;
-  if (txPort)
-    if (inv)
-      *txPort &= ~txBitMask;    //   set TX line low
-    else
-      *txPort |= txBitMask;     //   set TX line high
-  pinMode(txPin, OUTPUT);
+  if (txPin >= 0) {
+    txBitMask = digitalPinToBitMask( txPin );
+    txPort    = portOutputRegister( digitalPinToPort( txPin ) );
+
+    if (txPort) {
+      if (inv)
+        *txPort &= ~txBitMask;    //   set TX line low
+      else
+        *txPort |= txBitMask;     //   set TX line high
+    }
+
+    pinMode(txPin, OUTPUT);
+  } else {
+    txPort = 0;
+  }
 
   // Set the timer prescaling as necessary - want to be running at 250kHz
   #if F_CPU == 8000000L

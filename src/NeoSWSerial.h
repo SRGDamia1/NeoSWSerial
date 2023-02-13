@@ -65,7 +65,7 @@ class NeoSWSerial : public Stream
   NeoSWSerial & operator =( const NeoSWSerial & ); // Not allowed
 
 public:
-  NeoSWSerial(uint8_t receivePin, uint8_t transmitPin, bool inverse_logic = false)
+  NeoSWSerial(int8_t receivePin, int8_t transmitPin, bool inverse_logic = false)
     {
       rxPin = receivePin;
       txPin = transmitPin;
