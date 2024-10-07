@@ -93,6 +93,7 @@ static uint8_t rxTail;   // buffer pointer output
 
 static          uint8_t rxBitMask, txBitMask; // port bit masks
 static volatile uint8_t *txPort;  // port register
+static          bool inv; //invert the signal on the line
 
 //#define DEBUG_NEOSWSERIAL
 #ifdef DEBUG_NEOSWSERIAL
@@ -152,15 +153,26 @@ void NeoSWSerial::listen()
   if (listener)
     listener->ignore();
 
+  inv = inverse;
   pinMode(rxPin, INPUT);
   rxBitMask = digitalPinToBitMask( rxPin );
   rxPort    = portInputRegister( digitalPinToPort( rxPin ) );
 
-  txBitMask = digitalPinToBitMask( txPin );
-  txPort    = portOutputRegister( digitalPinToPort( txPin ) );
-  if (txPort)
-    *txPort  |= txBitMask;   // high = idle
-  pinMode(txPin, OUTPUT);
+  if (txPin >= 0) {
+    txBitMask = digitalPinToBitMask( txPin );
+    txPort    = portOutputRegister( digitalPinToPort( txPin ) );
+
+    if (txPort) {
+      if (inv)
+        *txPort &= ~txBitMask;    //   set TX line low
+      else
+        *txPort |= txBitMask;     //   set TX line high
+    }
+
+    pinMode(txPin, OUTPUT);
+  } else {
+    txPort = 0;
+  }
 
   // Set the timer prescaling as necessary - want to be running at 250kHz
   #if F_CPU == 8000000L
@@ -371,6 +383,9 @@ void NeoSWSerial::startChar()
 void NeoSWSerial::rxISR( uint8_t rxPort )
 {
   uint8_t t0 = TCNTX;               // time of data transition (plus ISR latency)
+  if (inv) {
+    rxPort = ~rxPort;
+  }
   uint8_t d  = rxPort & rxBitMask;  // read RX data level
 
   // Check if we're ready for a start bit, and if this could possibly be it
@@ -469,6 +484,7 @@ bool NeoSWSerial::checkRxTime()
   if (rxState != WAITING_FOR_START_BIT) {
 
     uint8_t d  = *rxPort & rxBitMask;
+    if (inv) d = ~d;
 
     if (d) {
       // Ended on a 1, see if it has been too long
@@ -628,7 +644,7 @@ size_t NeoSWSerial::write(uint8_t txChar)
 
   uint8_t width;         // ticks for one bit
   uint8_t txBit  = 0;    // first bit is start bit
-  uint8_t b      = 0;    // start bit is low
+  bool b  = false;    // start bit is logic 0
   uint8_t PCIbit = bit(digitalPinToPCICRbit(rxPin));
 
   uint8_t prevSREG = SREG;
@@ -642,7 +658,7 @@ size_t NeoSWSerial::write(uint8_t txChar)
     //    re-enabled.
 
     while (txBit++ < 9) {   // repeat for start bit + 8 data bits
-      if (b)      // if bit is set
+      if (b != inv)      // if desired state is high
         *txPort |= txBitMask;     //   set TX line high
       else
         *txPort &= ~txBitMask;    //   else set TX line low
@@ -673,7 +689,12 @@ size_t NeoSWSerial::write(uint8_t txChar)
                    // Q: would a signed >> pull in a 1?
     }
 
-  *txPort |= txBitMask;   // stop bit is high
+  // stop bit is logic 1
+  if (inv)
+    *txPort &= ~txBitMask;    //   else set TX line low
+  else
+    *txPort |= txBitMask;     //   set TX line high
+
   SREG = prevSREG;        // interrupts on for stop bit
   while ((uint8_t)(TCNTX - t0) < width) {
     if (checkRxTime()) {
